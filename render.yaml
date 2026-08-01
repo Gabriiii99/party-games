@@ -1,0 +1,40 @@
+# Configurazione del servizio su Render ("Blueprint").
+#
+# Tenerla nel repository invece che nei campi del sito ha due vantaggi: i comandi
+# non si sbagliano digitandoli, e se un domani il servizio va ricreato basta
+# ripuntare Render a questo file.
+#
+# Le tre variabili con "sync: false" NON stanno qui apposta: sono segreti
+# (password del database e chiave dei token) e vanno inseriti a mano nel
+# pannello di Render, che li custodisce cifrati. Su GitHub non finiscono mai.
+
+services:
+  - type: web
+    name: party-games
+    runtime: node
+    plan: free
+    region: frankfurt # stessa regione del database Neon: meno strada da fare
+    branch: main
+
+    # --include=dev e' indispensabile: Render imposta NODE_ENV=production e in quel
+    # caso npm salterebbe le dipendenze di sviluppo, cioe' proprio Vite (che compila
+    # il frontend) e Prisma (che applica le migrazioni).
+    #
+    # Le migrazioni stanno qui e non nello startCommand di proposito: cosi' girano una
+    # volta per pubblicazione, invece che a ogni risveglio del servizio addormentato.
+    buildCommand: npm install --include=dev && npm run db:deploy && npm run build
+    startCommand: npm start
+
+    # Render considera riuscita la pubblicazione solo quando questo indirizzo
+    # risponde. L'endpoint non interroga il database: verifica il server, non Neon.
+    healthCheckPath: /api/health
+
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL # stringa di Neon CON -pooler
+        sync: false
+      - key: DIRECT_URL # stringa di Neon SENZA -pooler
+        sync: false
+      - key: JWT_SECRET # chiave lunga e casuale, vedi README
+        sync: false
