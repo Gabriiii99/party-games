@@ -1,0 +1,32 @@
+{
+  "name": "party-games",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Giochi di gruppo da giocare tutti dal telefono. Primo gioco: quiz live con classifica.",
+  "workspaces": [
+    "shared",
+    "server",
+    "client"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev:server": "npm run dev -w @party/server",
+    "dev:client": "npm run dev -w @party/client",
+    "build": "npm run build -w @party/client",
+    "start": "npm run start -w @party/server",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy",
+    "db:seed": "prisma db seed",
+    "db:studio": "prisma studio",
+    "postinstall": "prisma generate"
+  },
+  "devDependencies": {
+    "prisma": "7.8.0",
+    "typescript": "^7.0.2"
+  }
+}

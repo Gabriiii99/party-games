@@ -1,0 +1,123 @@
+// Modello dati dell'app.
+//
+// Cosa sta nel database: account, set di domande e -- solo a partita finita -- lo
+// snapshot dei risultati (per l'albo d'oro).
+// Cosa NON sta nel database: la partita in corso, che vive in memoria sul server
+// (dura pochi minuti; se il server riparte, la partita e' persa: accettato).
+
+generator client {
+  provider               = "prisma-client"
+  output                 = "../src/generated/prisma"
+  runtime                = "nodejs"
+  moduleFormat           = "esm"
+  generatedFileExtension = "ts"
+  importFileExtension    = "js"
+}
+
+// In Prisma 7 la stringa di connessione non sta piu' qui:
+//   - le migrazioni (CLI)  -> la prendono da prisma.config.ts, che usa DIRECT_URL
+//   - l'app a runtime      -> la passa al driver adapter in server/src/prisma.ts, con DATABASE_URL
+// Questa e' esattamente la divisione che vuole Neon: pooled per l'app, direct per le migrazioni.
+datasource db {
+  provider = "postgresql"
+}
+
+// --- Account -----------------------------------------------------------------
+
+model User {
+  id           String   @id @default(cuid())
+  /// Nome mostrato agli altri giocatori, con le maiuscole scelte dall'utente.
+  username     String   @unique
+  /// Stesso nome tutto minuscolo: evita che "Marco" e "marco" siano due account.
+  usernameLower String  @unique
+  /// Hash bcrypt. La password in chiaro non viene mai salvata.
+  passwordHash String
+  createdAt    DateTime @default(now())
+
+  questionSets QuestionSet[]
+  hostedGames  Game[]        @relation("HostGames")
+  results      GameResult[]
+}
+
+// --- Domande -----------------------------------------------------------------
+
+model QuestionSet {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  /// true = visibile e utilizzabile da tutti gli amici, non solo da chi l'ha creato.
+  isPublic    Boolean  @default(true)
+  ownerId     String
+  owner       User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  questions Question[]
+  games     Game[]
+
+  @@index([ownerId])
+}
+
+enum QuestionType {
+  MULTIPLE_CHOICE
+  TRUE_FALSE
+}
+
+model Question {
+  id            String       @id @default(cuid())
+  questionSetId String
+  questionSet   QuestionSet  @relation(fields: [questionSetId], references: [id], onDelete: Cascade)
+  /// Posizione nel set, partendo da 0.
+  order         Int
+  type          QuestionType @default(MULTIPLE_CHOICE)
+  text          String
+  /// Le opzioni in ordine. Per il vero/falso: ["Vero", "Falso"].
+  options       String[]
+  /// Indice della risposta giusta dentro `options`.
+  correctIndex  Int
+  /// Se null usa i secondi scelti dall'host in lobby; se valorizzato vale solo per questa domanda.
+  timeLimitSec  Int?
+
+  @@unique([questionSetId, order])
+}
+
+// --- Storico partite (albo d'oro) --------------------------------------------
+
+model Game {
+  id            String       @id @default(cuid())
+  /// PIN usato dalla partita. Non e' unico: i PIN si riciclano nel tempo.
+  pin           String
+  /// Quale gioco era: per ora sempre "quiz". Campo pronto per i giochi futuri.
+  gameType      String       @default("quiz")
+  hostId        String
+  host          User         @relation("HostGames", fields: [hostId], references: [id])
+  questionSetId String?
+  questionSet   QuestionSet? @relation(fields: [questionSetId], references: [id], onDelete: SetNull)
+  startedAt     DateTime     @default(now())
+  endedAt       DateTime?
+
+  results GameResult[]
+
+  @@index([startedAt])
+}
+
+model GameResult {
+  id     String @id @default(cuid())
+  gameId String
+  game   Game   @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  /// null se l'account e' stato cancellato: la riga di classifica resta.
+  userId String?
+  user   User?  @relation(fields: [userId], references: [id], onDelete: SetNull)
+  /// Nome al momento della partita (se poi cambia, lo storico resta leggibile).
+  nickname String
+
+  /// Il punteggio: numero di risposte corrette.
+  correctCount   Int
+  totalQuestions Int
+  /// Somma dei tempi di risposta in ms. Serve solo come spareggio.
+  totalMs        Int
+  rank           Int
+
+  @@unique([gameId, userId])
+  @@index([userId])
+}

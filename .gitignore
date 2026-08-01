@@ -1,0 +1,19 @@
+node_modules/
+dist/
+dev-dist/
+
+# Client Prisma: si rigenera con "npm run db:generate", non va versionato.
+server/src/generated/
+
+# Contiene le password del database e la chiave dei token: NON deve finire su git.
+.env
+.env.local
+
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db
+
+# Impostazioni personali dell'editor: non fanno parte del progetto.
+.idea/
+.vscode/
