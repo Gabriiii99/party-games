@@ -9,6 +9,7 @@ import { GRAZIA_MS, nomeRoom, PAUSA_REVEAL_SEC } from '@party/shared'
 import { getPrisma } from '../prisma'
 import type { ServerIO } from '../realtime/io'
 import type { GameRoom } from './GameRoom'
+import { salvaRisultati } from './risultati'
 
 /** Pausa tra il "via" e la prima domanda: il tempo di prendere in mano il telefono. */
 const ATTESA_PARTENZA_MS = 3000
@@ -115,4 +116,8 @@ export function concludiPartita(io: ServerIO, stanza: GameRoom): void {
     podium: stanza.classifica,
     totalQuestions: stanza.numeroDomande,
   })
+
+  // Il podio parte subito; l'archiviazione va per conto suo. Se il database è lento
+  // o irraggiungibile, nessuno resta a fissare uno schermo fermo.
+  void salvaRisultati(stanza)
 }

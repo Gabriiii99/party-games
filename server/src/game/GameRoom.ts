@@ -87,6 +87,8 @@ export class GameRoom {
   private risposte = new Map<string, RispostaData>()
   /** Timer della domanda o della pausa: va sempre annullato prima di sostituirlo. */
   private timer: ReturnType<typeof setTimeout> | null = null
+  /** Impedisce di scrivere due volte lo stesso risultato nell'albo d'oro. */
+  private risultatiSalvati = false
 
   constructor(opzioni: OpzioniGameRoom) {
     this.pin = opzioni.pin
@@ -309,6 +311,13 @@ export class GameRoom {
   concludi(): void {
     this.fase = 'PODIUM'
     this.annullaTimer()
+  }
+
+  /** true la prima volta soltanto: serve a non duplicare la riga nell'albo d'oro. */
+  segnaRisultatiSalvati(): boolean {
+    if (this.risultatiSalvati) return false
+    this.risultatiSalvati = true
+    return true
   }
 
   get classifica(): ScoreboardRow[] {

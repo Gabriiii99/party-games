@@ -5,6 +5,7 @@ import { GIOCHI } from '@party/shared'
 import { api } from '../lib/api'
 import { useAuth } from '../lib/auth'
 import { usePartita } from '../lib/partita'
+import { HallOfFamePage } from './HallOfFamePage'
 
 interface SetDomande {
   id: string
@@ -23,6 +24,7 @@ export function HomePage() {
   const [pin, setPin] = useState('')
   const [messaggio, setMessaggio] = useState<string | null>(null)
   const [inCorso, setInCorso] = useState(false)
+  const [mostraAlbo, setMostraAlbo] = useState(false)
 
   useEffect(() => {
     let annullato = false
@@ -67,6 +69,10 @@ export function HomePage() {
   }
 
   const setPronto = setScelto !== ''
+
+  // L'albo è una deviazione dall'hub, non una fase del gioco: resta una schermata
+  // locale invece di entrare nello stato della partita.
+  if (mostraAlbo) return <HallOfFamePage indietro={() => setMostraAlbo(false)} />
 
   return (
     <div className="pagina">
@@ -137,6 +143,10 @@ export function HomePage() {
           </button>
         </div>
       ))}
+
+      <button type="button" onClick={() => setMostraAlbo(true)}>
+        Albo d'oro
+      </button>
 
       {messaggio && <p className="messaggio-errore">{messaggio}</p>}
 

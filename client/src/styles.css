@@ -544,3 +544,33 @@ select:focus-visible {
   text-align: center;
   flex: none;
 }
+
+/* --- Albo d'oro ----------------------------------------------------------- */
+
+/* Stesse righe dell'elenco giocatori, ma il testo puo' andare a capo: qui sotto
+   il nome c'e' una riga di dettagli (data, quanti erano, quale pacchetto). */
+.elenco-partite {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.elenco-partite li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  background: var(--sfondo-2);
+  border: 1px solid var(--bordo);
+  border-radius: 12px;
+}
+
+.elenco-partite .nome-giocatore,
+.elenco-giocatori .nome-giocatore:has(.nota) {
+  white-space: normal;
+  overflow: visible;
+  font-weight: 600;
+}
