@@ -127,7 +127,7 @@ vanno alzate insieme.
 - [x] **Fase 0** — scaffold: monorepo, `/api/health`, proxy Vite, basi grafiche mobile
 - [x] **Fase 1** — login e registrazione (username + password), tabelle create su Neon
 - [x] **Fase 2** — lobby e ingresso con PIN (WebSocket, elenco giocatori in tempo reale)
-- [ ] **Fase 3** — ciclo delle domande e punteggio
+- [x] **Fase 3** — ciclo delle domande, cronometro del server, punteggio e podio
 - [ ] **Fase 4** — classifica, podio e albo d'oro
 - [ ] **Fase 5** — editor delle domande e domande di esempio
 - [ ] **Fase 6** — robustezza (riconnessioni, host che cade)

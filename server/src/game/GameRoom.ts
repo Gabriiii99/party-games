@@ -10,13 +10,34 @@
 // scelta che rende possibile rientrare in partita ritrovando il proprio punteggio.
 
 import {
+  ordinaClassifica,
   TEMPO_DEFAULT,
   type FaseGioco,
   type GameType,
   type PlayerPublic,
+  type QuestionPublic,
+  type ScoreboardRow,
   type StatoPartita,
   type TempoDisponibile,
 } from '@party/shared'
+
+/** Una domanda come la conosce il server: qui dentro c'è anche la risposta giusta. */
+export interface DomandaInterna {
+  id: string
+  type: 'MULTIPLE_CHOICE' | 'TRUE_FALSE'
+  text: string
+  options: string[]
+  correctIndex: number
+  /** Se valorizzato vince sul tempo scelto dall'host per questa singola domanda. */
+  timeLimitSec: number | null
+}
+
+export interface RispostaData {
+  optionIndex: number
+  /** Millisecondi dall'apparizione della domanda, misurati dal server. */
+  tempoMs: number
+  corretta: boolean
+}
 
 export interface Giocatore {
   userId: string
@@ -55,6 +76,17 @@ export class GameRoom {
 
   private readonly giocatori = new Map<string, Giocatore>()
   private contatoreArrivi = 0
+
+  // --- Stato del ciclo delle domande ---
+  private domande: DomandaInterna[] = []
+  /** Indice della domanda in corso; -1 finché non si è partiti. */
+  private indice = -1
+  private inizioTs = 0
+  private scadenzaTs = 0
+  private durataMs = 0
+  private risposte = new Map<string, RispostaData>()
+  /** Timer della domanda o della pausa: va sempre annullato prima di sostituirlo. */
+  private timer: ReturnType<typeof setTimeout> | null = null
 
   constructor(opzioni: OpzioniGameRoom) {
     this.pin = opzioni.pin
@@ -147,6 +179,161 @@ export class GameRoom {
 
   impostaTempo(secondi: TempoDisponibile): void {
     this.timeLimitSec = secondi
+  }
+
+  // --- Ciclo delle domande ------------------------------------------------------------
+
+  caricaDomande(domande: DomandaInterna[]): void {
+    this.domande = domande
+  }
+
+  get domandaCorrente(): DomandaInterna | undefined {
+    return this.domande[this.indice]
+  }
+
+  get indiceCorrente(): number {
+    return this.indice
+  }
+
+  get ultimaDomanda(): boolean {
+    return this.indice >= this.domande.length - 1
+  }
+
+  get numeroDomande(): number {
+    return this.domande.length
+  }
+
+  /**
+   * Apre la domanda successiva e fissa la scadenza. Il momento di chiusura lo decide
+   * il server e viene comunicato ai client: loro mostrano solo il conto alla rovescia,
+   * non decidono quando è scaduto.
+   */
+  apriProssimaDomanda(): { domanda: DomandaInterna; deadlineTs: number; durataMs: number } | null {
+    if (this.indice >= this.domande.length - 1) return null
+
+    this.indice++
+    const domanda = this.domande[this.indice]
+
+    this.fase = 'QUESTION'
+    this.risposte = new Map()
+    for (const g of this.giocatori.values()) g.haRisposto = false
+
+    this.durataMs = (domanda.timeLimitSec ?? this.timeLimitSec) * 1000
+    this.inizioTs = Date.now()
+    this.scadenzaTs = this.inizioTs + this.durataMs
+
+    return { domanda, deadlineTs: this.scadenzaTs, durataMs: this.durataMs }
+  }
+
+  /** La domanda in corso, ripulita della risposta giusta: questa va al client. */
+  get domandaPubblica(): QuestionPublic | null {
+    const d = this.domandaCorrente
+    if (!d) return null
+    return { id: d.id, type: d.type, text: d.text, options: d.options }
+  }
+
+  get scadenza(): number {
+    return this.scadenzaTs
+  }
+
+  get durataDomandaMs(): number {
+    return this.durataMs
+  }
+
+  /**
+   * Registra una risposta. Vale solo la prima di ogni giocatore: i tap doppi e i
+   * ripensamenti vengono ignorati invece di sovrascrivere.
+   */
+  registraRisposta(
+    userId: string,
+    questionIndex: number,
+    optionIndex: number,
+    graziaMs: number,
+  ): { accettata: boolean; motivo?: 'tardiva' | 'doppia' | 'fuori_fase' } {
+    const domanda = this.domandaCorrente
+    if (this.fase !== 'QUESTION' || !domanda || questionIndex !== this.indice) {
+      return { accettata: false, motivo: 'fuori_fase' }
+    }
+    if (this.risposte.has(userId)) return { accettata: false, motivo: 'doppia' }
+
+    const ora = Date.now()
+    if (ora > this.scadenzaTs + graziaMs) return { accettata: false, motivo: 'tardiva' }
+
+    const giocatore = this.giocatori.get(userId)
+    if (!giocatore) return { accettata: false, motivo: 'fuori_fase' }
+
+    // Il tempo si ferma alla scadenza: la tolleranza di rete non deve diventare
+    // un tempo di risposta peggiore di chi ha risposto giusto in extremis.
+    const tempoMs = Math.min(ora - this.inizioTs, this.durataMs)
+    const corretta = optionIndex === domanda.correctIndex
+
+    this.risposte.set(userId, { optionIndex, tempoMs, corretta })
+    giocatore.haRisposto = true
+
+    if (corretta) {
+      giocatore.correctCount++
+      // Si somma solo il tempo delle risposte GIUSTE: altrimenti chi sbaglia in fretta
+      // guadagnerebbe posizioni nello spareggio rispetto a chi pensa e indovina.
+      giocatore.totalMs += tempoMs
+    }
+
+    return { accettata: true }
+  }
+
+  /** Tutti i presenti hanno risposto: inutile far scorrere il cronometro a vuoto. */
+  get tuttiHannoRisposto(): boolean {
+    const connessi = this.elenco.filter((g) => g.connected)
+    return connessi.length > 0 && connessi.every((g) => this.risposte.has(g.userId))
+  }
+
+  rispostaDi(userId: string): RispostaData | undefined {
+    return this.risposte.get(userId)
+  }
+
+  /** Quante persone hanno scelto ciascuna opzione: si mostra alla rivelazione. */
+  get conteggioRisposte(): number[] {
+    const domanda = this.domandaCorrente
+    if (!domanda) return []
+    const conteggio = new Array<number>(domanda.options.length).fill(0)
+    for (const r of this.risposte.values()) {
+      if (r.optionIndex >= 0 && r.optionIndex < conteggio.length) conteggio[r.optionIndex]++
+    }
+    return conteggio
+  }
+
+  chiudiDomanda(): void {
+    this.fase = 'REVEAL'
+    this.annullaTimer()
+  }
+
+  concludi(): void {
+    this.fase = 'PODIUM'
+    this.annullaTimer()
+  }
+
+  get classifica(): ScoreboardRow[] {
+    return ordinaClassifica(
+      this.elenco.map((g) => ({
+        userId: g.userId,
+        nickname: g.nickname,
+        correctCount: g.correctCount,
+        totalMs: g.totalMs,
+      })),
+    )
+  }
+
+  // --- Timer -----------------------------------------------------------------------
+
+  programma(azione: () => void, ritardoMs: number): void {
+    this.annullaTimer()
+    this.timer = setTimeout(azione, ritardoMs)
+  }
+
+  annullaTimer(): void {
+    if (this.timer) {
+      clearTimeout(this.timer)
+      this.timer = null
+    }
   }
 
   // --- Viste per il client ---------------------------------------------------------

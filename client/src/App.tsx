@@ -1,12 +1,15 @@
 // Radice dell'app: decide cosa mostrare in base allo stato di accesso e di partita.
-// La navigazione dentro la partita non usa gli URL: le schermate (lobby, domanda,
-// risultato, podio) le decide il server, quindi seguono lo stato del gioco.
+// Dentro la partita non si usano gli URL: la schermata è una conseguenza degli eventi
+// del server, non di una navigazione fatta dal telefono.
 
 import { ProviderAuth, useAuth } from './lib/auth'
 import { ProviderPartita, usePartita } from './lib/partita'
 import { HomePage } from './pages/HomePage'
 import { LobbyPage } from './pages/LobbyPage'
 import { LoginPage } from './pages/LoginPage'
+import { PlayPage } from './pages/PlayPage'
+import { PodiumPage } from './pages/PodiumPage'
+import { RevealPage } from './pages/RevealPage'
 
 export function App() {
   return (
@@ -20,20 +23,35 @@ export function App() {
 
 function Contenuto() {
   const { utente, caricamento } = useAuth()
-  const { stato } = usePartita()
+  const { schermata } = usePartita()
 
-  if (caricamento) {
-    return (
-      <div className="pagina centrata">
-        <span className="stato">
-          <span className="stato-pallino attesa" />
-          Un attimo...
-        </span>
-      </div>
-    )
-  }
-
+  if (caricamento) return <Attesa testo="Un attimo..." />
   if (!utente) return <LoginPage />
-  if (stato) return <LobbyPage />
-  return <HomePage />
+
+  switch (schermata) {
+    case 'lobby':
+      return <LobbyPage />
+    case 'partenza':
+      return <Attesa testo="Si comincia!" sottotitolo="Preparati..." />
+    case 'domanda':
+      return <PlayPage />
+    case 'risultato':
+      return <RevealPage />
+    case 'podio':
+      return <PodiumPage />
+    default:
+      return <HomePage />
+  }
+}
+
+function Attesa({ testo, sottotitolo }: { testo: string; sottotitolo?: string }) {
+  return (
+    <div className="pagina centrata">
+      <span className="stato">
+        <span className="stato-pallino attesa" />
+        {testo}
+      </span>
+      {sottotitolo && <p className="tenue">{sottotitolo}</p>}
+    </div>
+  )
 }

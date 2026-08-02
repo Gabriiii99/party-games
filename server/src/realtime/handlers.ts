@@ -4,9 +4,15 @@
 // esito esplicito (`ack`), cosi' il telefono sa sempre se l'azione e' andata a buon
 // fine invece di restare in attesa muta.
 
-import { nomeRoom, tempoValido, trovaGioco } from '@party/shared'
+import { GRAZIA_MS, nomeRoom, tempoValido, trovaGioco } from '@party/shared'
 import { gameManager } from '../game/GameManager'
 import type { GameRoom } from '../game/GameRoom'
+import {
+  avviaPartita,
+  caricaDomande,
+  chiudiDomanda,
+  saltaAttesa,
+} from '../game/quiz'
 import { databaseConfigurato, getPrisma } from '../prisma'
 import type { ServerIO, SocketPartita } from './io'
 
@@ -170,9 +176,9 @@ export function registraHandler(io: ServerIO, socket: SocketPartita): void {
     emettiLobby(io, stanza)
   })
 
-  // --- Avvio (il gioco vero arriva nella prossima fase) ---------------------------------
+  // --- Avvio della partita -----------------------------------------------------------
 
-  socket.on('game:start', (ack) => {
+  socket.on('game:start', async (ack) => {
     const stanza = socket.data.pin ? gameManager.trova(socket.data.pin) : undefined
     if (!stanza) {
       ack({ ok: false, error: 'not_found', message: 'Non sei in nessuna partita.' })
@@ -180,6 +186,10 @@ export function registraHandler(io: ServerIO, socket: SocketPartita): void {
     }
     if (!stanza.eHost(userId)) {
       ack({ ok: false, error: 'not_host', message: 'Solo chi ha creato la partita può avviarla.' })
+      return
+    }
+    if (stanza.fase !== 'LOBBY') {
+      ack({ ok: false, error: 'in_progress', message: 'La partita è già iniziata.' })
       return
     }
 
@@ -193,11 +203,64 @@ export function registraHandler(io: ServerIO, socket: SocketPartita): void {
       return
     }
 
-    ack({
-      ok: false,
-      error: 'invalid',
-      message: 'Le domande arrivano nella prossima fase: per ora la lobby si ferma qui.',
+    try {
+      const quante = await caricaDomande(stanza)
+      if (quante === 0) {
+        ack({ ok: false, error: 'invalid', message: 'Questo pacchetto non ha domande.' })
+        return
+      }
+      ack({ ok: true })
+      avviaPartita(io, stanza)
+      console.log(`[gioco] partita ${stanza.pin} avviata con ${quante} domande`)
+    } catch (e) {
+      console.error('[gioco] errore in game:start', e)
+      ack({ ok: false, error: 'server_error', message: 'Non riesco a caricare le domande.' })
+    }
+  })
+
+  // --- Risposte -------------------------------------------------------------------------
+
+  socket.on('answer:submit', (payload, ack) => {
+    const stanza = socket.data.pin ? gameManager.trova(socket.data.pin) : undefined
+    if (!stanza) {
+      ack({ ok: false, error: 'not_found', message: 'Non sei in nessuna partita.' })
+      return
+    }
+
+    const esito = stanza.registraRisposta(
+      userId,
+      payload?.questionIndex ?? -1,
+      payload?.optionIndex ?? -1,
+      GRAZIA_MS,
+    )
+
+    socket.emit('answer:ack', {
+      accepted: esito.accettata,
+      questionIndex: payload?.questionIndex ?? -1,
     })
+    ack({ ok: true })
+
+    // Se hanno risposto tutti non ha senso guardare il cronometro scorrere a vuoto:
+    // si chiude subito e si passa alla rivelazione.
+    if (esito.accettata && stanza.tuttiHannoRisposto) {
+      chiudiDomanda(io, stanza)
+    }
+  })
+
+  // --- Salto dell'attesa sul risultato ----------------------------------------------------
+
+  socket.on('game:next', (ack) => {
+    const stanza = socket.data.pin ? gameManager.trova(socket.data.pin) : undefined
+    if (!stanza) {
+      ack({ ok: false, error: 'not_found', message: 'Non sei in nessuna partita.' })
+      return
+    }
+    if (!stanza.eHost(userId)) {
+      ack({ ok: false, error: 'not_host', message: 'Solo il capo partita può andare avanti.' })
+      return
+    }
+    ack({ ok: true })
+    saltaAttesa(io, stanza)
   })
 
   // --- Uscita e caduta di linea ----------------------------------------------------------
