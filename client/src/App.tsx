@@ -1,21 +1,26 @@
-// Radice dell'app: decide cosa mostrare in base allo stato di accesso.
+// Radice dell'app: decide cosa mostrare in base allo stato di accesso e di partita.
 // La navigazione dentro la partita non usa gli URL: le schermate (lobby, domanda,
 // risultato, podio) le decide il server, quindi seguono lo stato del gioco.
 
 import { ProviderAuth, useAuth } from './lib/auth'
+import { ProviderPartita, usePartita } from './lib/partita'
 import { HomePage } from './pages/HomePage'
+import { LobbyPage } from './pages/LobbyPage'
 import { LoginPage } from './pages/LoginPage'
 
 export function App() {
   return (
     <ProviderAuth>
-      <Contenuto />
+      <ProviderPartita>
+        <Contenuto />
+      </ProviderPartita>
     </ProviderAuth>
   )
 }
 
 function Contenuto() {
   const { utente, caricamento } = useAuth()
+  const { stato } = usePartita()
 
   if (caricamento) {
     return (
@@ -28,5 +33,7 @@ function Contenuto() {
     )
   }
 
-  return utente ? <HomePage /> : <LoginPage />
+  if (!utente) return <LoginPage />
+  if (stato) return <LobbyPage />
+  return <HomePage />
 }

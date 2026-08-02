@@ -258,3 +258,108 @@ button:focus-visible {
     transition: none !important;
   }
 }
+
+/* --- Lobby ---------------------------------------------------------------- */
+
+.codice-partita {
+  align-items: center;
+  text-align: center;
+}
+
+/* Il codice va letto a voce dall'altra parte della stanza: grande e spaziato.
+   Le cifre monospaziate evitano che il numero "balli" mentre cambia. */
+.pin {
+  margin: 0;
+  font-size: clamp(2.5rem, 14vw, 3.5rem);
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  /* compensa lo spazio che la spaziatura aggiunge dopo l'ultima cifra */
+  text-indent: 0.15em;
+  line-height: 1.1;
+}
+
+/* Stesso trattamento per il campo in cui si digita il codice. */
+.campo-pin {
+  text-align: center;
+  font-size: 1.6rem;
+  letter-spacing: 0.15em;
+  text-indent: 0.15em;
+}
+
+.elenco-giocatori {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.elenco-giocatori li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  background: var(--sfondo-2);
+  border: 1px solid var(--bordo);
+  border-radius: 12px;
+}
+
+.elenco-giocatori li.assente {
+  opacity: 0.55;
+}
+
+.nome-giocatore {
+  font-weight: 600;
+  flex: 1;
+  /* nomi lunghi: si accorciano invece di sfondare la riga */
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.etichetta {
+  flex: none;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: var(--accento);
+  color: var(--testo);
+}
+
+.etichetta.tenue {
+  background: var(--bordo);
+  color: var(--testo-tenue);
+}
+
+/* I tasti della durata stanno su una riga sola e si dividono lo spazio. */
+.scelta-tempo {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.scelta-tempo button {
+  padding: 14px 4px;
+}
+
+select {
+  font: inherit;
+  color: var(--testo);
+  font-size: max(16px, 1rem);
+  min-height: 52px;
+  padding: 12px 14px;
+  border: 1px solid var(--bordo);
+  border-radius: 12px;
+  background: var(--sfondo);
+  width: 100%;
+}
+
+select:focus-visible {
+  outline: 2px solid var(--accento);
+  outline-offset: 2px;
+}

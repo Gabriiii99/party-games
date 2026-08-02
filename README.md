@@ -86,6 +86,20 @@ npm run db:studio     # sfoglia i dati nel browser
 Finche' `DATABASE_URL` e' vuota il server parte comunque: le rotte che usano il database
 rispondono `503` con un messaggio che spiega cosa fare, invece di far crashare l'app.
 
+## In produzione
+
+L'app e' pubblicata su <https://party-games-hx3j.onrender.com> (Render, piano gratuito) e usa lo
+**stesso database Neon** dello sviluppo locale: un account creato in locale funziona anche online.
+
+Due conseguenze del piano gratuito, da ricordare la sera della partita:
+
+- dopo ~15 minuti di inattivita' il servizio si addormenta e il primo che apre il link aspetta
+  30-50 secondi. Conviene aprirlo qualche minuto prima di iniziare;
+- **non pubblicare aggiornamenti durante una partita**: ogni deploy riavvia il server, e la partita
+  in corso vive nella sua memoria.
+
+Ogni `git push` sul ramo `main` fa ripartire la pubblicazione da solo.
+
 ## Promemoria per il deploy su Render
 
 Due trappole da ricordare quando si arrivera' alla Fase 7:
@@ -112,7 +126,7 @@ vanno alzate insieme.
 
 - [x] **Fase 0** — scaffold: monorepo, `/api/health`, proxy Vite, basi grafiche mobile
 - [x] **Fase 1** — login e registrazione (username + password), tabelle create su Neon
-- [ ] **Fase 2** — lobby e ingresso con PIN
+- [x] **Fase 2** — lobby e ingresso con PIN (WebSocket, elenco giocatori in tempo reale)
 - [ ] **Fase 3** — ciclo delle domande e punteggio
 - [ ] **Fase 4** — classifica, podio e albo d'oro
 - [ ] **Fase 5** — editor delle domande e domande di esempio

@@ -13,6 +13,7 @@ import express, {
 } from 'express'
 import { authRouter } from './routes/auth'
 import { healthRouter } from './routes/health'
+import { questionSetsRouter } from './routes/questionSets'
 import { montaClientStatico } from './static'
 
 export function creaApp(): Express {
@@ -22,6 +23,7 @@ export function creaApp(): Express {
 
   app.use('/api', healthRouter)
   app.use('/api', authRouter)
+  app.use('/api', questionSetsRouter)
 
   app.use('/api', (_req, res) => {
     res.status(404).json({ ok: false, error: 'not_found' })

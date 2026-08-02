@@ -47,14 +47,17 @@ export type EsitoCon<T> = (EsitoOk & T) | EsitoErrore
 // --- Client -> Server ---------------------------------------------------------
 
 export interface ClientToServerEvents {
-  /** Crea una partita e diventa host. Risponde col PIN da dettare agli amici. */
+  /** Crea una partita e diventa host. Nello stato c'è il PIN da dettare agli amici. */
   'game:create': (
     payload: { gameType: GameType; questionSetId: string },
-    ack: (esito: EsitoCon<{ pin: string }>) => void,
+    ack: (esito: EsitoCon<{ stato: StatoPartita }>) => void,
   ) => void
 
   /** Entra in una partita in lobby. */
-  'game:join': (payload: { pin: string }, ack: (esito: Esito) => void) => void
+  'game:join': (
+    payload: { pin: string },
+    ack: (esito: EsitoCon<{ stato: StatoPartita }>) => void,
+  ) => void
 
   /** Solo host: cambia i secondi per domanda mentre si e' in lobby. */
   'lobby:settings': (
@@ -84,12 +87,12 @@ export interface ClientToServerEvents {
 // --- Server -> Client ---------------------------------------------------------
 
 export interface ServerToClientEvents {
-  /** Qualcuno e' entrato/uscito o l'host ha cambiato il tempo. */
-  'lobby:update': (payload: {
-    players: PlayerPublic[]
-    hostId: string
-    timeLimitSec: number
-  }) => void
+  /**
+   * Qualcuno e' entrato/uscito, o l'host ha cambiato il tempo.
+   * Si manda sempre lo stato completo invece del solo pezzo cambiato: e' piccolo, e
+   * cosi' il client non puo' andare fuori sincrono ricostruendo aggiornamenti parziali.
+   */
+  'lobby:update': (payload: { stato: StatoPartita }) => void
 
   /** La partita sta partendo: schermata "pronti?". */
   'game:starting': (payload: { totalQuestions: number }) => void
