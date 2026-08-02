@@ -13,6 +13,19 @@ classifica: un punto per ogni risposta corretta, e a parita' vince chi ha rispos
 | Database | PostgreSQL su [Neon](https://neon.com) tramite Prisma |
 | Hosting | Un solo servizio su [Render](https://render.com): serve API, WebSocket e frontend |
 
+## Metterla sulla schermata home
+
+Aperto il link dal telefono: **Condividi -> Aggiungi alla schermata Home** (iPhone) oppure il menu
+del browser -> **Installa app** (Android). Compare un'icona come quelle delle altre app e si apre
+a schermo intero, senza la barra degli indirizzi.
+
+Viene messo in cache **solo il guscio** dell'app (codice, stili, icone): domande, partite e
+classifiche arrivano sempre dal server, perche' una copia vecchia sarebbe peggio di nessuna copia.
+L'app non funziona offline, ed e' voluto: e' un gioco che si gioca insieme.
+
+Quando pubblichi una versione nuova, quella nuova **resta in attesa** e subentra alla successiva
+apertura: cosi' non ricarica la pagina a qualcuno mentre sta rispondendo a una domanda.
+
 ## Quando la rete fa i capricci
 
 La rete del telefono cade di continuo, e l'app e' pensata per sopravviverci:
@@ -152,4 +165,4 @@ vanno alzate insieme.
 - [x] **Fase 4** — albo d'oro: risultati salvati a fine partita, vittorie e storico
 - [x] **Fase 5** — editor delle domande (scrivi i tuoi pacchetti) e domande di esempio
 - [x] **Fase 6** — robustezza: rientro con il punteggio, ricaricamento della pagina, capo che cade
-- [ ] **Fase 7** — PWA e deploy su Render
+- [x] **Fase 7** — installabile sulla schermata home del telefono (PWA)
