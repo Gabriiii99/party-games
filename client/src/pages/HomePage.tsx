@@ -1,47 +1,49 @@
-// Hub: da qui si crea una partita o si entra con il codice di un amico.
+// Hub: da qui si crea una partita, si entra con un codice, si guarda l'albo d'oro e
+// si scrivono le domande.
+//
+// Albo ed editor non sono fasi di gioco: sono deviazioni dall'hub, quindi vivono in
+// uno stato locale invece di finire nello stato della partita, che è del server.
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { GIOCHI } from '@party/shared'
 import { api } from '../lib/api'
 import { useAuth } from '../lib/auth'
 import { usePartita } from '../lib/partita'
+import { EditorPacchettoPage } from './EditorPacchettoPage'
 import { HallOfFamePage } from './HallOfFamePage'
+import { PacchettiPage, type SetDomande } from './PacchettiPage'
 
-interface SetDomande {
-  id: string
-  title: string
-  description: string | null
-  numeroDomande: number
-  autore: string
-}
+type Vista =
+  | { tipo: 'hub' }
+  | { tipo: 'albo' }
+  | { tipo: 'pacchetti' }
+  | { tipo: 'editor'; id: string | null }
 
 export function HomePage() {
   const { utente, esci } = useAuth()
   const { crea, entra, collegato } = usePartita()
 
+  const [vista, setVista] = useState<Vista>({ tipo: 'hub' })
   const [set, setSet] = useState<SetDomande[]>([])
   const [setScelto, setSetScelto] = useState('')
   const [pin, setPin] = useState('')
   const [messaggio, setMessaggio] = useState<string | null>(null)
   const [inCorso, setInCorso] = useState(false)
-  const [mostraAlbo, setMostraAlbo] = useState(false)
 
-  useEffect(() => {
-    let annullato = false
+  const caricaSet = useCallback(() => {
     api
       .get<{ set: SetDomande[] }>('/question-sets')
       .then((dati) => {
-        if (annullato) return
         setSet(dati.set)
-        if (dati.set.length > 0) setSetScelto(dati.set[0].id)
+        // Se il pacchetto scelto è sparito (cancellato), si ricade sul primo.
+        setSetScelto((attuale) =>
+          dati.set.some((s) => s.id === attuale) ? attuale : (dati.set[0]?.id ?? ''),
+        )
       })
-      .catch(() => {
-        if (!annullato) setMessaggio('Non riesco a caricare i pacchetti di domande.')
-      })
-    return () => {
-      annullato = true
-    }
+      .catch(() => setMessaggio('Non riesco a caricare i pacchetti di domande.'))
   }, [])
+
+  useEffect(caricaSet, [caricaSet])
 
   const creaPartita = async (gameType: 'quiz') => {
     setMessaggio(null)
@@ -68,11 +70,36 @@ export function HomePage() {
     }
   }
 
-  const setPronto = setScelto !== ''
+  if (vista.tipo === 'albo') {
+    return <HallOfFamePage indietro={() => setVista({ tipo: 'hub' })} />
+  }
 
-  // L'albo è una deviazione dall'hub, non una fase del gioco: resta una schermata
-  // locale invece di entrare nello stato della partita.
-  if (mostraAlbo) return <HallOfFamePage indietro={() => setMostraAlbo(false)} />
+  if (vista.tipo === 'pacchetti') {
+    return (
+      <PacchettiPage
+        indietro={() => {
+          caricaSet() // può aver cancellato qualcosa
+          setVista({ tipo: 'hub' })
+        }}
+        apriEditor={(id) => setVista({ tipo: 'editor', id })}
+      />
+    )
+  }
+
+  if (vista.tipo === 'editor') {
+    return (
+      <EditorPacchettoPage
+        id={vista.id}
+        chiudi={(salvato) => {
+          if (salvato) caricaSet()
+          setVista({ tipo: 'pacchetti' })
+        }}
+      />
+    )
+  }
+
+  const setPronto = setScelto !== ''
+  const sceltoOra = set.find((s) => s.id === setScelto)
 
   return (
     <div className="pagina">
@@ -115,22 +142,23 @@ export function HomePage() {
           <h2>{gioco.nome}</h2>
           <p className="tenue">{gioco.descrizione}</p>
 
-          {set.length > 1 && (
+          {set.length > 1 ? (
             <label className="campo">
               <span>Pacchetto di domande</span>
               <select value={setScelto} onChange={(e) => setSetScelto(e.target.value)}>
                 {set.map((s) => (
                   <option key={s.id} value={s.id}>
-                    {s.title} ({s.numeroDomande} domande)
+                    {s.title} ({s.numeroDomande})
                   </option>
                 ))}
               </select>
             </label>
-          )}
-          {set.length === 1 && (
-            <p className="tenue nota">
-              {set[0].title} · {set[0].numeroDomande} domande
-            </p>
+          ) : (
+            sceltoOra && (
+              <p className="tenue nota">
+                {sceltoOra.title} · {sceltoOra.numeroDomande} domande
+              </p>
+            )
           )}
 
           <button
@@ -144,9 +172,14 @@ export function HomePage() {
         </div>
       ))}
 
-      <button type="button" onClick={() => setMostraAlbo(true)}>
-        Albo d'oro
-      </button>
+      <div className="riga-azioni">
+        <button type="button" onClick={() => setVista({ tipo: 'pacchetti' })}>
+          Le domande
+        </button>
+        <button type="button" onClick={() => setVista({ tipo: 'albo' })}>
+          Albo d'oro
+        </button>
+      </div>
 
       {messaggio && <p className="messaggio-errore">{messaggio}</p>}
 

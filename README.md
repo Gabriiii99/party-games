@@ -133,6 +133,6 @@ vanno alzate insieme.
 - [x] **Fase 2** — lobby e ingresso con PIN (WebSocket, elenco giocatori in tempo reale)
 - [x] **Fase 3** — ciclo delle domande, cronometro del server, punteggio e podio
 - [x] **Fase 4** — albo d'oro: risultati salvati a fine partita, vittorie e storico
-- [ ] **Fase 5** — editor delle domande e domande di esempio
+- [x] **Fase 5** — editor delle domande (scrivi i tuoi pacchetti) e domande di esempio
 - [ ] **Fase 6** — robustezza (riconnessioni, host che cade)
 - [ ] **Fase 7** — PWA e deploy su Render

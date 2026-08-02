@@ -574,3 +574,46 @@ select:focus-visible {
   overflow: visible;
   font-weight: 600;
 }
+
+/* --- Editor delle domande ------------------------------------------------- */
+
+/* Due tasti affiancati che si dividono la larghezza. */
+.riga-azioni {
+  display: flex;
+  gap: 8px;
+}
+
+.riga-azioni > button {
+  flex: 1;
+}
+
+button.pericolo {
+  border-color: var(--errore);
+  color: var(--errore);
+}
+
+/* Pallino della risposta giusta + casella di testo sulla stessa riga. */
+.riga-opzione {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.riga-opzione input[type='radio'] {
+  /* i radio nativi sono minuscoli: qui si tocca col pollice */
+  width: 24px;
+  height: 24px;
+  min-height: 0;
+  flex: none;
+  accent-color: var(--accento);
+}
+
+.riga-opzione input[type='text'],
+.riga-opzione input:not([type]) {
+  flex: 1;
+  min-width: 0;
+}
+
+.riga-opzione input:disabled {
+  opacity: 0.6;
+}
