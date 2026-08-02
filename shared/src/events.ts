@@ -4,13 +4,7 @@
 //
 // Convenzione: ogni partita vive nella room Socket.IO `game:<PIN>`.
 
-import type {
-  FaseGioco,
-  PlayerPublic,
-  QuestionPublic,
-  ScoreboardRow,
-  StatoPartita,
-} from './dto'
+import type { QuestionPublic, ScoreboardRow, StatoPartita } from './dto'
 import type { GameType } from './games'
 
 /** Nome della room Socket.IO di una partita. */
@@ -135,11 +129,14 @@ export interface ServerToClientEvents {
     totalQuestions: number
   }) => void
 
-  /** Snapshot completo dopo un `game:rejoin`. */
+  /**
+   * Fotografia completa della partita, mandata a chi rientra dopo una caduta di linea
+   * o dopo aver ricaricato la pagina. Basta questa a rimettere il telefono nella
+   * schermata giusta: la fase sta dentro `stato`.
+   */
   'game:state': (payload: {
     stato: StatoPartita
-    fase: FaseGioco
-    /** Presente solo se `fase === 'QUESTION'`. */
+    /** Presente solo se la fase è `QUESTION`: contiene anche il tempo che resta. */
     domandaInCorso?: {
       index: number
       total: number

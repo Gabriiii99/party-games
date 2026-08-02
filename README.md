@@ -13,6 +13,23 @@ classifica: un punto per ogni risposta corretta, e a parita' vince chi ha rispos
 | Database | PostgreSQL su [Neon](https://neon.com) tramite Prisma |
 | Hosting | Un solo servizio su [Render](https://render.com): serve API, WebSocket e frontend |
 
+## Quando la rete fa i capricci
+
+La rete del telefono cade di continuo, e l'app e' pensata per sopravviverci:
+
+- **chi si scollega resta in partita** col suo punteggio e rientra da solo appena torna
+  la linea; le domande perse valgono zero;
+- **ricaricare la pagina non fa perdere la partita**: il codice della partita e' ricordato
+  sul telefono (insieme a *di chi* e', per non catapultare un altro nella tua partita se
+  gli passi il telefono);
+- **se cade il capo partita** si aspetta prima di sostituirlo: un tunnel non deve costargli
+  i comandi. Se invece esce di proposito, il comando passa subito;
+- **la partita non si ferma mai per colpa del capo**: le domande scorrono da sole, lui puo'
+  solo saltare le pause.
+
+Un giocatore e' identificato dal suo **account**, mai dal collegamento: e' la scelta che
+rende possibile tutto quanto sopra.
+
 Tre principi:
 
 1. **Il server e' l'autorita'** — timer, correttezza e punteggi li decide il server. Il client
@@ -134,5 +151,5 @@ vanno alzate insieme.
 - [x] **Fase 3** — ciclo delle domande, cronometro del server, punteggio e podio
 - [x] **Fase 4** — albo d'oro: risultati salvati a fine partita, vittorie e storico
 - [x] **Fase 5** — editor delle domande (scrivi i tuoi pacchetti) e domande di esempio
-- [ ] **Fase 6** — robustezza (riconnessioni, host che cade)
+- [x] **Fase 6** — robustezza: rientro con il punteggio, ricaricamento della pagina, capo che cade
 - [ ] **Fase 7** — PWA e deploy su Render

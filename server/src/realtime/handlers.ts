@@ -4,7 +4,7 @@
 // esito esplicito (`ack`), cosi' il telefono sa sempre se l'azione e' andata a buon
 // fine invece di restare in attesa muta.
 
-import { GRAZIA_MS, nomeRoom, tempoValido, trovaGioco } from '@party/shared'
+import { GRAZIA_HOST_MS, GRAZIA_MS, nomeRoom, tempoValido, trovaGioco } from '@party/shared'
 import { gameManager } from '../game/GameManager'
 import type { GameRoom } from '../game/GameRoom'
 import {
@@ -35,27 +35,51 @@ export function registraHandler(io: ServerIO, socket: SocketPartita): void {
     precedente.rimuovi(userId)
     socket.leave(nomeRoom(precedente.pin))
     socket.data.pin = undefined
-    sistemaDopoUscita(precedente)
+    sistemaDopoUscita(precedente, true)
   }
 
-  /** Dopo che qualcuno se n'e' andato: passa il comando o chiudi la stanza. */
-  function sistemaDopoUscita(stanza: GameRoom): void {
+  /** Passa il comando a chi è rimasto. */
+  function passaIlComando(stanza: GameRoom): void {
+    const erede = stanza.candidatoHost() ?? stanza.elenco.find((g) => g.connected)
+    if (!erede) return
+
+    stanza.hostId = erede.userId
+    io.to(nomeRoom(stanza.pin)).emit('host:changed', {
+      newHostId: erede.userId,
+      nickname: erede.nickname,
+    })
+    emettiLobby(io, stanza)
+  }
+
+  /** Dopo che qualcuno se n'è andato: chiudi, aspetta il capo, o passa il comando. */
+  function sistemaDopoUscita(stanza: GameRoom, volontaria: boolean): void {
     if (stanza.numeroConnessi === 0) {
+      stanza.annullaTimer()
+      stanza.annullaAttesaHost()
       gameManager.chiudi(stanza.pin)
       return
     }
 
-    // Se se n'e' andato proprio l'host, il comando passa a chi e' arrivato per primo
-    // tra i presenti: la partita non deve morire perche' uno ha chiuso la scheda.
-    if (!stanza.trova(stanza.hostId)) {
-      const erede = stanza.candidatoHost() ?? stanza.elenco.find((g) => g.connected)
-      if (erede) {
-        stanza.hostId = erede.userId
-        io.to(nomeRoom(stanza.pin)).emit('host:changed', {
-          newHostId: erede.userId,
-          nickname: erede.nickname,
-        })
-      }
+    const hostPresente = stanza.trova(stanza.hostId)?.connected ?? false
+    if (hostPresente) {
+      emettiLobby(io, stanza)
+      return
+    }
+
+    // Se ha chiuso lui l'app di proposito non ha senso aspettarlo; se invece è
+    // sparita la linea gli si lascia il tempo di rientrare, altrimenti un tunnel
+    // gli costerebbe i comandi della partita.
+    if (volontaria) {
+      passaIlComando(stanza)
+      return
+    }
+
+    if (!stanza.attesaHostInCorso) {
+      io.to(nomeRoom(stanza.pin)).emit('host:disconnected', { graceMs: GRAZIA_HOST_MS })
+      stanza.programmaAttesaHost(() => {
+        const tornato = stanza.trova(stanza.hostId)?.connected ?? false
+        if (!tornato) passaIlComando(stanza)
+      }, GRAZIA_HOST_MS)
     }
 
     emettiLobby(io, stanza)
@@ -141,6 +165,7 @@ export function registraHandler(io: ServerIO, socket: SocketPartita): void {
     stanza.aggiungi(userId, username, socket.id)
     socket.join(nomeRoom(stanza.pin))
     socket.data.pin = stanza.pin
+    if (stanza.eHost(userId)) stanza.annullaAttesaHost()
 
     ack({ ok: true, stato: stanza.stato })
     emettiLobby(io, stanza)
@@ -263,6 +288,38 @@ export function registraHandler(io: ServerIO, socket: SocketPartita): void {
     saltaAttesa(io, stanza)
   })
 
+  // --- Rientro dopo una caduta di linea o un ricaricamento ---------------------------------
+
+  socket.on('game:rejoin', (payload, ack) => {
+    const pin = String(payload?.pin ?? '').trim()
+    const stanza = gameManager.trova(pin)
+
+    if (!stanza) {
+      // Capita di continuo: il server è ripartito, o la partita è finita da un pezzo.
+      // Non è un errore da mostrare in rosso, è un "quella partita non c'è più".
+      ack({ ok: false, error: 'not_found', message: 'Quella partita non esiste più.' })
+      return
+    }
+
+    const giaDentro = stanza.trova(userId)
+    if (!giaDentro && stanza.fase !== 'LOBBY') {
+      ack({ ok: false, error: 'in_progress', message: 'Partita già iniziata: aspetta la prossima.' })
+      return
+    }
+
+    stanza.aggiungi(userId, username, socket.id)
+    socket.join(nomeRoom(stanza.pin))
+    socket.data.pin = stanza.pin
+
+    // Se il capo era caduto ed è tornato lui, l'attesa finisce qui: resta al comando.
+    if (stanza.eHost(userId)) stanza.annullaAttesaHost()
+
+    ack({ ok: true })
+    socket.emit('game:state', stanza.fotografiaPer(userId))
+    emettiLobby(io, stanza)
+    console.log(`[gioco] ${username} è rientrato nella partita ${pin} (fase ${stanza.fase})`)
+  })
+
   // --- Uscita e caduta di linea ----------------------------------------------------------
 
   socket.on('game:leave', () => {
@@ -279,7 +336,7 @@ export function registraHandler(io: ServerIO, socket: SocketPartita): void {
     if (!giocatore || (giocatore.socketId && giocatore.socketId !== socket.id)) return
 
     stanza.segnaDisconnesso(userId)
-    sistemaDopoUscita(stanza)
+    sistemaDopoUscita(stanza, false)
     console.log(`[gioco] ${username} si e' scollegato dalla partita ${stanza.pin} (${motivo})`)
   })
 }

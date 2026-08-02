@@ -87,6 +87,8 @@ export class GameRoom {
   private risposte = new Map<string, RispostaData>()
   /** Timer della domanda o della pausa: va sempre annullato prima di sostituirlo. */
   private timer: ReturnType<typeof setTimeout> | null = null
+  /** Attesa del capo partita caduto, indipendente dal ritmo del gioco. */
+  private timerHost: ReturnType<typeof setTimeout> | null = null
   /** Impedisce di scrivere due volte lo stesso risultato nell'albo d'oro. */
   private risultatiSalvati = false
 
@@ -345,6 +347,26 @@ export class GameRoom {
     }
   }
 
+  /**
+   * Timer separato per l'attesa del capo partita caduto: se usasse lo stesso della
+   * domanda, far partire un'attesa cancellerebbe il cronometro della domanda in corso.
+   */
+  programmaAttesaHost(azione: () => void, ritardoMs: number): void {
+    this.annullaAttesaHost()
+    this.timerHost = setTimeout(azione, ritardoMs)
+  }
+
+  annullaAttesaHost(): void {
+    if (this.timerHost) {
+      clearTimeout(this.timerHost)
+      this.timerHost = null
+    }
+  }
+
+  get attesaHostInCorso(): boolean {
+    return this.timerHost !== null
+  }
+
   // --- Viste per il client ---------------------------------------------------------
 
   get elencoPubblico(): PlayerPublic[] {
@@ -355,6 +377,45 @@ export class GameRoom {
       isHost: g.userId === this.hostId,
       haRisposto: g.haRisposto,
     }))
+  }
+
+  /**
+   * Tutto quello che serve a un telefono per rimettersi in pari dopo una caduta di
+   * linea o un ricaricamento della pagina. È personalizzata perché "hai già risposto"
+   * dipende da chi chiede.
+   */
+  fotografiaPer(userId: string): {
+    stato: StatoPartita
+    domandaInCorso?: {
+      index: number
+      total: number
+      question: QuestionPublic
+      serverNow: number
+      deadlineTs: number
+      durationMs: number
+      haGiaRisposto: boolean
+    }
+    scoreboard: ScoreboardRow[]
+  } {
+    const base = { stato: this.stato, scoreboard: this.classifica }
+
+    const domanda = this.domandaPubblica
+    if (this.fase !== 'QUESTION' || !domanda) return base
+
+    return {
+      ...base,
+      domandaInCorso: {
+        index: this.indice,
+        total: this.domande.length,
+        question: domanda,
+        // Il tempo che resta lo ricava il client da deadlineTs: chi rientra a metà
+        // domanda riprende con i secondi giusti, non con il cronometro da capo.
+        serverNow: Date.now(),
+        deadlineTs: this.scadenzaTs,
+        durationMs: this.durataMs,
+        haGiaRisposto: this.risposte.has(userId),
+      },
+    }
   }
 
   get stato(): StatoPartita {

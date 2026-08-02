@@ -5,14 +5,13 @@ import { usePartita } from '../lib/partita'
 import { useTempoRimasto } from '../lib/useTempoRimasto'
 
 export function PlayPage() {
-  const { domanda, miaRisposta, rispondi } = usePartita()
+  const { domanda, miaRisposta, haRisposto, rispondi } = usePartita()
   const rimastoMs = useTempoRimasto(domanda?.deadlineTs ?? null, domanda?.scartoMs ?? 0)
 
   if (!domanda) return null
 
   const secondi = Math.ceil(rimastoMs / 1000)
   const frazione = domanda.durationMs > 0 ? rimastoMs / domanda.durationMs : 0
-  const haRisposto = miaRisposta !== null
   const tempoFinito = rimastoMs === 0
 
   return (

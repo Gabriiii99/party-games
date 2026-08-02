@@ -27,6 +27,13 @@ export const GRAZIA_MS = 400
 /** Secondi di pausa sulla schermata del risultato prima della domanda successiva. */
 export const PAUSA_REVEAL_SEC = 5
 
+/**
+ * Quanto si aspetta il capo partita caduto prima di passare il comando a un altro.
+ * In galleria o cambiando cella si sta fuori qualche secondo: promuovere subito
+ * significherebbe togliergli i comandi per un buco di rete di cui non ha colpa.
+ */
+export const GRAZIA_HOST_MS = 45000
+
 export function tempoValido(sec: number): sec is TempoDisponibile {
   return (TEMPI_DISPONIBILI as readonly number[]).includes(sec)
 }

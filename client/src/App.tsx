@@ -39,6 +39,9 @@ function Contenuto() {
       return <RevealPage />
     case 'podio':
       return <PodiumPage />
+    case 'attesa':
+      // Rientrati tra una domanda e l'altra: la prossima arriva entro pochi secondi.
+      return <Attesa testo="Sei di nuovo dentro" sottotitolo="Aspetta la prossima domanda..." />
     default:
       return <HomePage />
   }
