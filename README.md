@@ -98,7 +98,11 @@ Due conseguenze del piano gratuito, da ricordare la sera della partita:
 - **non pubblicare aggiornamenti durante una partita**: ogni deploy riavvia il server, e la partita
   in corso vive nella sua memoria.
 
-Ogni `git push` sul ramo `main` fa ripartire la pubblicazione da solo.
+Ogni `git push` sul ramo `main` fa ripartire la pubblicazione da solo. **Attenzione ai tempi**: sul
+piano gratuito una pubblicazione puo' richiedere anche piu' di venti minuti (installazione dei
+pacchetti + build del frontend su una macchina piccola). Se la rotta nuova risponde ancora come
+prima, quasi sempre sta solo ancora compilando: si controlla in `Events`, non tirando conclusioni
+dall'esterno.
 
 ## Promemoria per il deploy su Render
 
